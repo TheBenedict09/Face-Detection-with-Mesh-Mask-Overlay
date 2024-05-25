@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 List<CameraDescription> cameras = [];
 
@@ -19,7 +18,6 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       home: FaceDetectionScreen(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -31,42 +29,27 @@ class FaceDetectionScreen extends StatefulWidget {
 
 class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   late CameraController _controller;
-  late WebSocketChannel _channel;
   bool _isStreaming = false;
-  bool _isConnected = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = CameraController(cameras[0], ResolutionPreset.high);
-    _controller.initialize().then((_) {
-      if (!mounted) return;
-      setState(() {});
-    });
-    // _channel = WebSocketChannel.connect(Uri.parse('wss://example.com/stream'));
-    // _channel.stream.listen(
-    //   (message) {
-    //     setState(
-    //       () {
-    //         _isConnected = true;
-    //       },
-    //     );
-    //   },
-    //   onError: (error) {
-    //     setState(
-    //       () {
-    //         _isConnected = false;
+    _initializeCamera();
+  }
 
-    //       },
-    //     );
-    //   },
-    // );
+  Future<void> _initializeCamera() async {
+    _controller = CameraController(cameras[0], ResolutionPreset.high);
+    try {
+      await _controller.initialize();
+      setState(() {});
+    } catch (e) {
+      print('Error initializing camera: $e');
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
-    _channel.sink.close();
     super.dispose();
   }
 
@@ -77,11 +60,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     setState(() {
       _isStreaming = true;
     });
-    _controller.startImageStream((CameraImage image) {
-      // Convert image to bytes and send to WebSocket
-      // Uint8List videoFrame = _convertCameraImageToBytes(image);
-      // _channel.sink.add(videoFrame);
-    });
+    // Start the camera feed, but without streaming to WebSocket
   }
 
   void _stopStreaming() {
@@ -91,7 +70,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     setState(() {
       _isStreaming = false;
     });
-    _controller.stopImageStream();
+    // Stop the camera feed, but without streaming to WebSocket
   }
 
   @override
@@ -113,7 +92,6 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
           SizedBox(height: 16),
           ControlPanel(
             isStreaming: _isStreaming,
-            isConnected: _isConnected,
             onStart: _startStreaming,
             onStop: _stopStreaming,
           ),
@@ -126,13 +104,11 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
 
 class ControlPanel extends StatelessWidget {
   final bool isStreaming;
-  final bool isConnected;
   final VoidCallback onStart;
   final VoidCallback onStop;
 
   ControlPanel({
     required this.isStreaming,
-    required this.isConnected,
     required this.onStart,
     required this.onStop,
   });
@@ -144,11 +120,6 @@ class ControlPanel extends StatelessWidget {
         ElevatedButton(
           onPressed: isStreaming ? onStop : onStart,
           child: Text(isStreaming ? 'Stop' : 'Start'),
-        ),
-        SizedBox(height: 8),
-        Text(
-          isConnected ? 'Connected' : 'Disconnected',
-          style: TextStyle(color: isConnected ? Colors.green : Colors.red),
         ),
       ],
     );
